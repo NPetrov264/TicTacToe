@@ -8,8 +8,18 @@ public class Game {
     private GameState gameState;
     private int turn;
     private boolean xTurn;
-    private List<Coordinates> coordinates;
-    private enum GameState { RUNNING, DRAW, X_WIN, O_WIN }
+    private enum GameState {
+        O_WIN(-1),
+        DRAW(0),
+        X_WIN(1),
+        RUNNING(2);
+
+        private final int value;
+        GameState(final int newValue) {
+            value = newValue;
+        }
+        public int getValue() { return value; }
+    }
     private enum Difficulty { EASY, MEDIUM, HARD }
 
     public Game() {
@@ -36,17 +46,10 @@ public class Game {
 
         gameState = GameState.RUNNING;
         xTurn = true;
-        turn = 0;
+        turn = 1;
         Arrays.fill(this.board[0], ' ');
         Arrays.fill(this.board[1], ' ');
         Arrays.fill(this.board[2], ' ');
-        coordinates = new ArrayList<>(9);
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                coordinates.add(new Coordinates(i, j));
-            }
-        }
-        Collections.shuffle(coordinates);
 
         while (gameState == GameState.RUNNING) {
             printBoard();
@@ -59,6 +62,9 @@ public class Game {
                         break;
                     case "medium":
                         aiMove(Difficulty.MEDIUM);
+                        break;
+                    case "hard":
+                        aiMove(Difficulty.HARD);
                         break;
                     default:
                         aiMove(Difficulty.EASY);
@@ -74,12 +80,16 @@ public class Game {
                     case "medium":
                         aiMove(Difficulty.MEDIUM);
                         break;
+                    case "hard":
+                        aiMove(Difficulty.HARD);
+                        break;
                     default:
                         aiMove(Difficulty.EASY);
                         break;
                 }
             }
-            checkResult();
+            gameState = checkResult(board, turn);
+            turn++;
         }
         printBoard();
         displayResults();
@@ -106,6 +116,7 @@ public class Game {
                 System.out.print("Enter the coordinates: ");
                 x = sc.nextInt() - 1;
                 y = sc.nextInt() - 1;
+                sc.nextLine();
                 if (board[x][y] != ' ') {
                     System.out.println("This cell is occupied! Choose another one! ");
                 }
@@ -121,19 +132,18 @@ public class Game {
         xTurn = !xTurn;
     }
     private void aiMove(Difficulty difficulty) {
-        Coordinates temp;
         switch (difficulty) {
             case EASY:
                 System.out.println("Making move level \"easy\"");
-                temp = easyMove();
-                board[temp.x][temp.y] = xTurn ? 'X' : 'O';
+                easyMove();
                 break;
             case MEDIUM:
                 System.out.println("Making move level \"medium\"");
-                temp = mediumMove();
-                board[temp.x][temp.y] = xTurn ? 'X' : 'O';
+                mediumMove();
                 break;
             case HARD:
+                System.out.println("Making move level \"hard\"");
+                hardMove();
                 break;
             default:
                 System.out.println("Error: Difficulty not selected!");
@@ -141,108 +151,162 @@ public class Game {
         }
         xTurn = !xTurn;
     }
-    private Coordinates easyMove() {
-        Coordinates temp;
+    //make a random move
+    private void easyMove() {
+        Random rand = new Random();
+        int x;
+        int y;
         do {
-            temp = coordinates.remove(0);
-        } while (board[temp.x][temp.y] != ' ');
-        return temp;
+            x = rand.nextInt(3);
+            y = rand.nextInt(3);
+        } while (board[x][y] != ' ');
+        board[x][y] = xTurn ? 'X' : 'O';
     }
 
-    private Coordinates mediumMove() {
-        int x = 0;
-        int y = 0;
-        int sumO;
-        int sumX;
+    //Find if there is next move that can win the game or stop opponent from winning
+    //and if there is such move do it, and if not do a random move
+    private void mediumMove() {
+        int x = -1;
+        int y = -1;
 
-        for (int i = 0; i < 3 ; i++) {
-            sumX = 0;
-            sumO = 0;
-            for (int j = 0; j < 3; j++) {
-                if (board[i][j] == 'O') {
-                    sumO++;
-                } else if (board[i][j] == 'X') {
-                    sumX++;
-                } else {
-                    x = i;
-                    y = j;
+        if (xTurn) {
+            for (int i = 0; i < 3 ; i++) {
+                for (int j = 0; j < 3 ; j++) {
+                    if(board[i][j] == ' ') {
+                        board[i][j] = 'X';
+                        if (checkResult(board, turn) == GameState.X_WIN) {
+                            return;
+                        }
+                        board[i][j] = 'O';
+                        if (checkResult(board, turn) == GameState.O_WIN) {
+                            x = i;
+                            y = j;
+                        }
+                        board[i][j] = ' ';
+                    }
                 }
             }
-            if(sumX == 2 && sumO == 0 || sumX == 0 && sumO == 2) {
-                return new Coordinates(x, y);
+            if(x != -1) {
+                board[x][y] = 'X';
+                return;
             }
-        }
-        for (int i = 0; i < 3 ; i++) {
-            sumX = 0;
-            sumO = 0;
-            for (int j = 0; j < 3; j++) {
-                if (board[j][i] == 'O') {
-                    sumO++;
-                } else if (board[j][i] == 'X') {
-                    sumX++;
-                } else {
-                    x = j;
-                    y = i;
+        } else {
+            for (int i = 0; i < 3 ; i++) {
+                for (int j = 0; j < 3 ; j++) {
+                    if(board[i][j] == ' ') {
+                        board[i][j] = 'O';
+                        if (checkResult(board, turn) == GameState.O_WIN) {
+                            return;
+                        }
+                        board[i][j] = 'X';
+                        if (checkResult(board, turn) == GameState.X_WIN) {
+                            x = i;
+                            y = j;
+                        }
+                        board[i][j] = ' ';
+                    }
                 }
             }
-            if(sumX == 2 && sumO == 0 || sumX == 0 && sumO == 2) {
-                return new Coordinates(x, y);
+            if(x != -1) {
+                board[x][y] = 'O';
+                return;
             }
         }
-        sumX = 0;
-        sumO = 0;
-        for (int i = 0; i < 3 ; i++) {
-            if (board[i][i] == 'O') {
-                sumO++;
-            } else if (board[i][i] == 'X') {
-                sumX++;
-            } else {
-                x = i;
-                y = i;
-            }
-        }
-        if(sumX == 2 && sumO == 0 || sumX == 0 && sumO == 2) {
-            return new Coordinates(x, y);
-        }
-        sumX = 0;
-        sumO = 0;
-        for (int i = 0; i < 3 ; i++) {
-            if (board[i][2 - i] == 'O') {
-                sumO++;
-            } else if (board[i][2 - i] == 'X') {
-                sumX++;
-            } else {
-                x = i;
-                y = 2 - i;
-            }
-        }
-        if(sumX == 2 && sumO == 0 || sumX == 0 && sumO == 2) {
-            return new Coordinates(x, y);
-        }
-        return easyMove();
+        easyMove();
     }
-    private void checkResult() {
+
+    //play the optimal move using the minimax algorithm
+    private void hardMove() {
+        int x = 0, y = 0;
+        if (xTurn) {
+            int bestMove = -100;
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    if(board[i][j] == ' ') {
+                        board[i][j] = 'X';
+                        int move = minimax(board, turn + 1, false);
+                        board[i][j] = ' ';
+                        if (move > bestMove) {
+                            bestMove = move;
+                            x = i;
+                            y = j;
+                        }
+                    }
+                }
+            }
+        } else {
+            int bestMove = 100;
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    if (board[i][j] == ' ') {
+                        board[i][j] = 'O';
+                        int move = minimax(board, turn + 1, true);
+                        board[i][j] = ' ';
+                        if (move < bestMove) {
+                            bestMove = move;
+                            x = i;
+                            y = j;
+                        }
+                    }
+                }
+            }
+        }
+        board[x][y] = xTurn ? 'X' : 'O';
+    }
+    //minimax algorithm
+    private int minimax(char[][] board, int turn, boolean xTurn) {
+        GameState state = checkResult(board, turn);
+        if(state != GameState.RUNNING) {
+            return state.getValue() * (11 - turn);
+        }
+        if (xTurn) {
+            int bestScore = -100;
+            for (int i = 0; i < 3 ; i++) {
+                for (int j = 0; j < 3 ; j++) {
+                    if(board[i][j] == ' ') {
+                        board[i][j] = 'X';
+                        int score = minimax(board, turn + 1, false);
+                        bestScore = Math.max(bestScore, score);
+                        board[i][j] = ' ';
+                    }
+                }
+            }
+            return bestScore;
+        } else {
+            int bestScore = 100;
+            for (int i = 0; i < 3 ; i++) {
+                for (int j = 0; j < 3 ; j++) {
+                    if(board[i][j] == ' ') {
+                        board[i][j] = 'O';
+                        int score = minimax(board, turn + 1, true);
+                        bestScore = Math.min(bestScore, score);
+                        board[i][j] = ' ';
+                    }
+                }
+            }
+            return bestScore;
+        }
+    }
+
+    private GameState checkResult(char[][] board, int turn) {
+        if(turn >= 9) {
+            return GameState.DRAW;
+        }
         for (int i = 0; i < 3 ; i++) {
             if(board[i][0] != ' ' && board[i][0] == board[i][1] && board[i][1] == board[i][2]) {
-                gameState = board[i][0] == 'X'? GameState.X_WIN : GameState.O_WIN;
-                return;
+                return board[i][0] == 'X'? GameState.X_WIN : GameState.O_WIN;
             }
             if(board[0][i] != ' ' && board[0][i] == board[1][i] && board[1][i] == board[2][i]) {
-                gameState = board[0][i] == 'X'? GameState.X_WIN : GameState.O_WIN;
-                return;
+                return board[0][i] == 'X'? GameState.X_WIN : GameState.O_WIN;
             }
         }
         if(board[0][0] != ' ' && board[0][0] == board[1][1] && board[1][1] == board[2][2]) {
-            gameState = board[1][1] == 'X'? GameState.X_WIN : GameState.O_WIN;
-            return;
+            return board[1][1] == 'X'? GameState.X_WIN : GameState.O_WIN;
         }
         if(board[2][0] != ' ' && board[2][0] == board[1][1] && board[1][1] == board[0][2]) {
-            gameState = board[1][1] == 'X'? GameState.X_WIN : GameState.O_WIN;
-            return;
+            return board[1][1] == 'X'? GameState.X_WIN : GameState.O_WIN;
         }
-        if(++turn >= 9) {
-            gameState = GameState.DRAW;
-        }
+        return GameState.RUNNING;
     }
     private void displayResults(){
         switch (gameState) {
